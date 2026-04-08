@@ -1,0 +1,206 @@
+diff --git a/pcdet/datasets/__init__.py b/pcdet/datasets/__init__.py
+index 47c3900..3de7d68 100644
+--- a/pcdet/datasets/__init__.py
++++ b/pcdet/datasets/__init__.py
+@@ -12,7 +12,6 @@ from .waymo.waymo_dataset import WaymoDataset
+ from .pandaset.pandaset_dataset import PandasetDataset
+ from .lyft.lyft_dataset import LyftDataset
+ from .once.once_dataset import ONCEDataset
+-from .argo2.argo2_dataset import Argo2Dataset
+ from .custom.custom_dataset import CustomDataset
+ 
+ __all__ = {
+@@ -24,7 +23,6 @@ __all__ = {
+     'LyftDataset': LyftDataset,
+     'ONCEDataset': ONCEDataset,
+     'CustomDataset': CustomDataset,
+-    'Argo2Dataset': Argo2Dataset
+ }
+ 
+ 
+diff --git a/pcdet/datasets/kitti/kitti_dataset.py b/pcdet/datasets/kitti/kitti_dataset.py
+index 411bd75..f542d47 100644
+--- a/pcdet/datasets/kitti/kitti_dataset.py
++++ b/pcdet/datasets/kitti/kitti_dataset.py
+@@ -440,12 +440,16 @@ def create_kitti_infos(dataset_cfg, class_names, data_path, save_path, workers=4
+     print('---------------Start to generate data infos---------------')
+ 
+     dataset.set_split(train_split)
++    #print("Skipping train info generation (no labels / no train split).")
++    #kitti_infos_train = []
+     kitti_infos_train = dataset.get_infos(num_workers=workers, has_label=True, count_inside_pts=True)
+     with open(train_filename, 'wb') as f:
+         pickle.dump(kitti_infos_train, f)
+     print('Kitti info train file is saved to %s' % train_filename)
+ 
+     dataset.set_split(val_split)
++    #print("Skipping val info generation (no labels / no val split).")
++    #kitti_infos_val = []
+     kitti_infos_val = dataset.get_infos(num_workers=workers, has_label=True, count_inside_pts=True)
+     with open(val_filename, 'wb') as f:
+         pickle.dump(kitti_infos_val, f)
+@@ -463,6 +467,7 @@ def create_kitti_infos(dataset_cfg, class_names, data_path, save_path, workers=4
+ 
+     print('---------------Start create groundtruth database for data augmentation---------------')
+     dataset.set_split(train_split)
++    #print("Skipping ground-truth database generation (no labels).")
+     dataset.create_groundtruth_database(train_filename, split=train_split)
+ 
+     print('---------------Data preparation Done---------------')
+diff --git a/pcdet/datasets/kitti/kitti_object_eval_python/rotate_iou.py b/pcdet/datasets/kitti/kitti_object_eval_python/rotate_iou.py
+index 543d8f2..80e1238 100644
+--- a/pcdet/datasets/kitti/kitti_object_eval_python/rotate_iou.py
++++ b/pcdet/datasets/kitti/kitti_object_eval_python/rotate_iou.py
+@@ -7,20 +7,20 @@ import math
+ 
+ import numba
+ import numpy as np
+-from numba import cuda
++#from numba import cuda
+ 
+ 
+ @numba.jit(nopython=True)
+ def div_up(m, n):
+     return m // n + (m % n > 0)
+ 
+-@cuda.jit('(float32[:], float32[:], float32[:])', device=True, inline=True)
++#@cuda.jit('(float32[:], float32[:], float32[:])', device=True, inline=True)
+ def trangle_area(a, b, c):
+     return ((a[0] - c[0]) * (b[1] - c[1]) - (a[1] - c[1]) *
+             (b[0] - c[0])) / 2.0
+ 
+ 
+-@cuda.jit('(float32[:], int32)', device=True, inline=True)
++#@cuda.jit('(float32[:], int32)', device=True, inline=True)
+ def area(int_pts, num_of_inter):
+     area_val = 0.0
+     for i in range(num_of_inter - 2):
+@@ -30,7 +30,7 @@ def area(int_pts, num_of_inter):
+     return area_val
+ 
+ 
+-@cuda.jit('(float32[:], int32)', device=True, inline=True)
++#@cuda.jit('(float32[:], int32)', device=True, inline=True)
+ def sort_vertex_in_convex_polygon(int_pts, num_of_inter):
+     if num_of_inter > 0:
+         center = cuda.local.array((2, ), dtype=numba.float32)
+@@ -70,10 +70,10 @@ def sort_vertex_in_convex_polygon(int_pts, num_of_inter):
+                 int_pts[j * 2 + 1] = ty
+ 
+ 
+-@cuda.jit(
+-    '(float32[:], float32[:], int32, int32, float32[:])',
+-    device=True,
+-    inline=True)
++#@cuda.jit(
++#    '(float32[:], float32[:], int32, int32, float32[:])',
++#    device=True,
++#    inline=True)
+ def line_segment_intersection(pts1, pts2, i, j, temp_pts):
+     A = cuda.local.array((2, ), dtype=numba.float32)
+     B = cuda.local.array((2, ), dtype=numba.float32)
+@@ -116,10 +116,10 @@ def line_segment_intersection(pts1, pts2, i, j, temp_pts):
+     return False
+ 
+ 
+-@cuda.jit(
+-    '(float32[:], float32[:], int32, int32, float32[:])',
+-    device=True,
+-    inline=True)
++#@cuda.jit(
++#    '(float32[:], float32[:], int32, int32, float32[:])',
++#    device=True,
++#   inline=True)
+ def line_segment_intersection_v1(pts1, pts2, i, j, temp_pts):
+     a = cuda.local.array((2, ), dtype=numba.float32)
+     b = cuda.local.array((2, ), dtype=numba.float32)
+@@ -158,7 +158,7 @@ def line_segment_intersection_v1(pts1, pts2, i, j, temp_pts):
+     return True
+ 
+ 
+-@cuda.jit('(float32, float32, float32[:])', device=True, inline=True)
++#@cuda.jit('(float32, float32, float32[:])', device=True, inline=True)
+ def point_in_quadrilateral(pt_x, pt_y, corners):
+     ab0 = corners[2] - corners[0]
+     ab1 = corners[3] - corners[1]
+@@ -177,7 +177,7 @@ def point_in_quadrilateral(pt_x, pt_y, corners):
+     return abab >= abap and abap >= 0 and adad >= adap and adap >= 0
+ 
+ 
+-@cuda.jit('(float32[:], float32[:], float32[:])', device=True, inline=True)
++#@cuda.jit('(float32[:], float32[:], float32[:])', device=True, inline=True)
+ def quadrilateral_intersection(pts1, pts2, int_pts):
+     num_of_inter = 0
+     for i in range(4):
+@@ -201,7 +201,7 @@ def quadrilateral_intersection(pts1, pts2, int_pts):
+     return num_of_inter
+ 
+ 
+-@cuda.jit('(float32[:], float32[:])', device=True, inline=True)
++#@cuda.jit('(float32[:], float32[:])', device=True, inline=True)
+ def rbbox_to_corners(corners, rbbox):
+     # generate clockwise corners and rotate it clockwise
+     angle = rbbox[4]
+@@ -228,7 +228,7 @@ def rbbox_to_corners(corners, rbbox):
+                 + 1] = -a_sin * corners_x[i] + a_cos * corners_y[i] + center_y
+ 
+ 
+-@cuda.jit('(float32[:], float32[:])', device=True, inline=True)
++#@cuda.jit('(float32[:], float32[:])', device=True, inline=True)
+ def inter(rbbox1, rbbox2):
+     corners1 = cuda.local.array((8, ), dtype=numba.float32)
+     corners2 = cuda.local.array((8, ), dtype=numba.float32)
+@@ -245,7 +245,7 @@ def inter(rbbox1, rbbox2):
+     return area(intersection_corners, num_intersection)
+ 
+ 
+-@cuda.jit('(float32[:], float32[:], int32)', device=True, inline=True)
++#@cuda.jit('(float32[:], float32[:], int32)', device=True, inline=True)
+ def devRotateIoUEval(rbox1, rbox2, criterion=-1):
+     area1 = rbox1[2] * rbox1[3]
+     area2 = rbox2[2] * rbox2[3]
+@@ -259,7 +259,7 @@ def devRotateIoUEval(rbox1, rbox2, criterion=-1):
+     else:
+         return area_inter
+ 
+-@cuda.jit('(int64, int64, float32[:], float32[:], float32[:], int32)', fastmath=False)
++#@cuda.jit('(int64, int64, float32[:], float32[:], float32[:], int32)', fastmath=False)
+ def rotate_iou_kernel_eval(N, K, dev_boxes, dev_query_boxes, dev_iou, criterion=-1):
+     threadsPerBlock = 8 * 8
+     row_start = cuda.blockIdx.x
+@@ -307,6 +307,10 @@ def rotate_iou_gpu_eval(boxes, query_boxes, criterion=-1, device_id=0):
+     Returns:
+         [type]: [description]
+     """
++# GPU version disabled — fallback to CPU IoU
++    from .rotate_iou_cpu import rotate_iou_cpu_eval
++    return rotate_iou_cpu_eval(boxes, query_boxes, criterion)
++
+     box_dtype = boxes.dtype
+     boxes = boxes.astype(np.float32)
+     query_boxes = query_boxes.astype(np.float32)
+diff --git a/tools/cfgs/dataset_configs/kitti_dataset.yaml b/tools/cfgs/dataset_configs/kitti_dataset.yaml
+index b1529aa..7385833 100644
+--- a/tools/cfgs/dataset_configs/kitti_dataset.yaml
++++ b/tools/cfgs/dataset_configs/kitti_dataset.yaml
+@@ -1,5 +1,5 @@
+ DATASET: 'KittiDataset'
+-DATA_PATH: '../data/kitti'
++DATA_PATH: 'data/kitti'
+ 
+ POINT_CLOUD_RANGE: [0, -40, -3, 70.4, 40, 1]
+ 
+diff --git a/tools/cfgs/kitti_models/pointpillar.yaml b/tools/cfgs/kitti_models/pointpillar.yaml
+index 96fda96..3d50426 100644
+--- a/tools/cfgs/kitti_models/pointpillar.yaml
++++ b/tools/cfgs/kitti_models/pointpillar.yaml
+@@ -1,7 +1,7 @@
+ CLASS_NAMES: ['Car', 'Pedestrian', 'Cyclist']
+ 
+-DATA_CONFIG: 
+-    _BASE_CONFIG_: cfgs/dataset_configs/kitti_dataset.yaml
++DATA_CONFIG:
++    _BASE_CONFIG_: tools/cfgs/dataset_configs/kitti_dataset.yaml
+     POINT_CLOUD_RANGE: [0, -39.68, -3, 69.12, 39.68, 1]
+     DATA_PROCESSOR:
+         - NAME: mask_points_and_boxes_outside_range
